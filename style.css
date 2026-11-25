@@ -31,3 +31,9 @@ video{width:100%;border-radius:10px;background:#000;max-height:46vh;object-fit:c
 .row{display:flex;gap:8px}.row>*{flex:1}
 .off{background:#FFF4D6;color:var(--amb);font-size:12px;font-weight:bold;padding:6px 10px;border-radius:6px;margin-bottom:10px}
 .pres{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+
+.hb{margin:8px 0}.hbt{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:3px}
+.prog{height:10px;background:var(--line);border-radius:5px;overflow:hidden}.prog i{display:block;height:100%;border-radius:5px}
+.meal{border:1px solid var(--line);border-radius:10px;padding:12px;margin:8px 0}.meal .big{font-size:26px;font-weight:800;color:var(--navy);margin:2px 0 6px}
+.vbw{overflow-x:auto;padding-bottom:4px}.vb{display:flex;align-items:flex-end;gap:3px;height:120px;min-width:100%;width:max-content}
+.vbc{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;width:30px}.vbc i{display:block;width:100%;border-radius:3px 3px 0 0}.vbc small{font-size:9px;color:var(--gry);line-height:1.2}
