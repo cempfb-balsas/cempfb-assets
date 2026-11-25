@@ -90,10 +90,11 @@
   function iniciar() {
     var pp = (S.papel || 'PROF').toUpperCase();
     if (S.perfil === 'prof' && pp === 'PORTARIA') { var P = [['en', '🚪 Entrada', telaPortaria], ['hj', '📊 Hoje', telaHoje]]; P[0][2](); abas(P, 'en'); }
-    else if (S.perfil === 'prof' && pp === 'CANTINA') { var C = [['rf', '🍽 Refeição', telaRefeicao], ['hj', '📊 Hoje', telaHoje], ['ca', 'Cardápio', telaCardapio]]; C[0][2](); abas(C, 'rf'); }
-    else if (S.perfil === 'prof' && pp === 'DIRECAO') { var D = [['hj', '📊 Hoje', telaHoje], ['ch', '✔ Chamada', telaChamada], ['bo', 'Boletim', telaBoletim], ['en', '🚪 Entrada', telaPortaria], ['rf', '🍽 Refeição', telaRefeicao]]; D[0][2](); abas(D, 'hj'); }
+    else if (S.perfil === 'prof' && pp === 'CANTINA') { var C = [['rf', '🍽 Refeição', telaRefeicao], ['hj', '📊 Hoje', telaHoje], ['ca', 'Cardápio', telaCardapio], ['pq', '📋 Pesquisas', function () { telaPesquisas(null); }]]; C[0][2](); abas(C, 'rf'); }
+    else if (S.perfil === 'prof' && pp === 'ADMIN') { var M = [['gs', '⚙ Gestão', telaGestao], ['hj', '📊 Hoje', telaHoje], ['ca', '🍽 Cardápio', telaCardapio]]; M[0][2](); abas(M, 'gs'); }
+    else if (S.perfil === 'prof' && pp === 'DIRECAO') { var D = [['hj', '📊 Hoje', telaHoje], ['ch', '✔ Chamada', telaChamada], ['bo', 'Boletim', telaBoletim], ['en', '🚪 Entrada', telaPortaria], ['rf', '🍽 Refeição', telaRefeicao], ['gs', '⚙ Gestão', telaGestao]]; D[0][2](); abas(D, 'hj'); }
     else if (S.perfil === 'prof') { var L = [['ch', '✔ Chamada', telaChamada], ['bo', '📊 Boletim', telaBoletim], ['ca', '🍽 Cardápio', telaCardapio]]; L[0][2](); abas(L, 'ch'); }
-    else { var A = [['no', '📚 Notas', telaNotas], ['qr', '▣ Meu QR', telaQR], ['ca', '🍽 Cardápio', telaCardapio]]; A[0][2](); abas(A, 'no'); }
+    else { var A = [['no', '📚 Notas', telaNotas], ['qr', '▣ Meu QR', telaQR], ['ca', '🍽 Cardápio', telaCardapio], ['pq', '📋 Pesquisa', telaPesqAluno]]; A[0][2](); abas(A, 'no'); }
     sincronizarFila();
   }
   function topo(sub) {
@@ -181,6 +182,150 @@
       box.textContent = ''; box.appendChild(el('h2', { txt: 'Próximos dias' }));
       if (!d.itens.length) box.appendChild(el('div', { cls: 'muted', txt: 'Cardápio ainda não publicado.' }));
       d.itens.forEach(function (i) { box.appendChild(el('div', { cls: 'pres' }, [el('div', {}, [el('b', { txt: i.data + ' · ' + i.refeicao }), el('div', { txt: i.prato }), i.obs ? el('div', { cls: 'muted', txt: i.obs }) : null])])); });
+    }).catch(function (e) { box.textContent = ''; box.appendChild(erroBox(e)); });
+  }
+
+  // ---------- portaria: achar o aluno pelo nome (esqueceu / perdeu o celular) ----------
+  function buscaNome(acaoFn, extra, res, aoOk) {
+    var q = el('input', { placeholder: 'Digite o nome (3 letras ou mais)', autocomplete: 'off' }), b = el('button', { cls: 'sec', style: 'margin-top:8px;width:100%', txt: 'Buscar aluno pelo nome' }), lista = el('div');
+    function busca() {
+      if (q.value.trim().length < 3) { lista.textContent = ''; lista.appendChild(el('div', { cls: 'muted', txt: 'Digite pelo menos 3 letras.' })); return; }
+      lista.textContent = 'Buscando…';
+      api('buscaaluno', { q: q.value }).then(function (d) {
+        lista.textContent = ''; if (!d.itens.length) { lista.appendChild(el('div', { cls: 'muted', txt: 'Nenhum aluno encontrado.' })); return; }
+        d.itens.forEach(function (x) {
+          var bt = el('button', { style: 'width:100%;margin-top:6px;text-align:left;padding:12px', txt: x.nome + ' · ' + x.turma }); bt.onclick = function () { lista.textContent = ''; q.value = ''; enviarComFila(acaoFn(), Object.assign({ manual: x.mat }, extra()), res, aoOk); }; lista.appendChild(bt);
+        });
+      }).catch(function (e) { lista.textContent = ''; lista.appendChild(erroBox(e)); });
+    }
+    b.onclick = busca; q.onkeydown = function (e) { if (e.key === 'Enter') busca(); };
+    return el('div', { style: 'margin-top:14px' }, [el('label', { txt: 'Sem celular: buscar pelo nome' }), q, b, lista]);
+  }
+
+  // ---------- gestão (Trio Gestor e Administrativo): PINs, cardápio e pesquisas ----------
+  function btnVoltar() { var b = el('button', { cls: 'sec', style: 'margin-bottom:10px', txt: '← Gestão' }); b.onclick = telaGestao; return b; }
+  function telaGestao() {
+    limpaTimers(); $app.textContent = ''; $app.appendChild(topo((S.papel === 'DIRECAO' ? 'Trio Gestor' : 'Administrativo') + ' · gestão'));
+    var c = el('div', { cls: 'card' }, [el('h2', { txt: 'O que você quer fazer?' })]);
+    [['🔑  PINs: renovar senha de aluno ou da equipe', telaPins], ['🍽  Cardápio: publicar ou corrigir', telaCardapioAdm], ['📋  Pesquisas sobre o cardápio', function () { telaPesquisas(telaGestao); }]].forEach(function (x) {
+      var b = el('button', { style: 'width:100%;margin-top:10px;text-align:left;padding:15px', txt: x[0] }); b.onclick = x[1]; c.appendChild(b);
+    });
+    $app.appendChild(c);
+  }
+  function telaPins() {
+    limpaTimers(); $app.textContent = ''; $app.appendChild(topo('PINs'));
+    var q = el('input', { placeholder: 'Nome, matrícula ou código (2 letras ou mais)', autocomplete: 'off' }), b = el('button', { txt: 'Buscar', style: 'margin-top:8px;width:100%' }), lista = el('div'), aviso = el('div', { cls: 'msg' }), resumo = el('div', { cls: 'muted', style: 'margin-top:10px' });
+    function mostraPin(r) {
+      lista.textContent = ''; aviso.textContent = '';
+      var ok = el('button', { cls: 'sec', style: 'margin-top:10px', txt: 'Entendi, buscar outra pessoa' }); ok.onclick = function () { lista.textContent = ''; q.value = ''; };
+      lista.appendChild(el('div', { cls: 'res ok' }, [el('span', { txt: 'Novo PIN de ' + r.nome + ' (' + r.id + ')' }), el('div', { style: 'font-size:36px;font-weight:800;letter-spacing:5px;margin:8px 0', txt: r.pin }),
+        el('small', { txt: 'Entregue em mãos. Este PIN não fica salvo e não aparece de novo. A pessoa deve trocá-lo no primeiro acesso ("Trocar PIN").' })])); lista.appendChild(ok);
+    }
+    function linha(x) {
+      var rb = el('button', { cls: 'sec', txt: 'Renovar PIN' }), acoes = [rb];
+      rb.onclick = function () {
+        if (!confirm('Renovar o PIN de ' + x.nome + '? O PIN atual deixa de valer.')) return; rb.disabled = true; aviso.textContent = '';
+        api('pinsrenovar', { perfil: x.perfil, id: x.id }).then(function (r) { if (!r.ok) { rb.disabled = false; aviso.textContent = r.msg; return; } mostraPin(r); })
+          .catch(function (e) { rb.disabled = false; aviso.textContent = offline(e) ? 'Sem internet.' : 'Não foi possível renovar.'; });
+      };
+      if (x.perfil === 'aluno') {
+        var bb = el('button', { cls: 'sec', style: 'margin-left:6px', txt: x.status === 'BLOQUEADO' ? 'Desbloquear' : 'Bloquear' });
+        bb.onclick = function () { api('pinsbloq', { id: x.id, bloquear: x.status !== 'BLOQUEADO' }).then(function (r) { if (r.ok) { x.status = r.status; bb.textContent = r.status === 'BLOQUEADO' ? 'Desbloquear' : 'Bloquear'; aviso.style.color = '#1B7F3B'; aviso.textContent = x.nome + ': ' + (r.status === 'BLOQUEADO' ? 'bloqueado.' : 'desbloqueado.'); } else { aviso.style.color = ''; aviso.textContent = r.msg; } }); };
+        acoes.push(bb);
+      }
+      lista.appendChild(el('div', { cls: 'pres', style: 'flex-direction:column;gap:8px' }, [el('div', {}, [el('b', { txt: x.nome }), el('div', { cls: 'muted', txt: x.id + ' · ' + x.sub + (x.status === 'BLOQUEADO' ? ' · BLOQUEADO' : '') })]), el('div', {}, acoes)]));
+    }
+    function busca() {
+      aviso.style.color = ''; aviso.textContent = ''; lista.textContent = 'Buscando…';
+      api('pinsbusca', { q: q.value }).then(function (d) { lista.textContent = ''; if (!d.itens.length) { aviso.textContent = 'Ninguém encontrado.'; return; } d.itens.forEach(linha); }).catch(function (e) { lista.textContent = ''; lista.appendChild(erroBox(e)); });
+    }
+    b.onclick = busca; q.onkeydown = function (e) { if (e.key === 'Enter') busca(); };
+    $app.appendChild(el('div', { cls: 'card' }, [btnVoltar(), el('h2', { txt: 'Renovar PIN' }), el('div', { cls: 'muted', txt: 'Use quando alguém esqueceu o PIN. O novo PIN aparece uma vez, na sua tela.' }), q, b, aviso, lista, resumo]));
+    api('pinsresumo').then(function (d) { resumo.textContent = 'Acessos da equipe: ' + d.equipe.map(function (e) { return e.nome + ' ' + e.usados + '/' + e.max; }).join(' · '); }).catch(function () {});
+  }
+  function telaCardapioAdm() {
+    limpaTimers(); $app.textContent = ''; $app.appendChild(topo('Cardápio'));
+    var hoje = new Date(), iso = hoje.getFullYear() + '-' + ('0' + (hoje.getMonth() + 1)).slice(-2) + '-' + ('0' + hoje.getDate()).slice(-2);
+    var dt = el('input', { type: 'date', min: iso, value: iso }), ref = el('select'), prato = el('input', { maxlength: '120', placeholder: 'Ex.: Arroz, feijão e frango assado' }), obs = el('input', { maxlength: '200', placeholder: 'Observação (opcional)' });
+    var msg = el('div', { cls: 'msg' }), lista = el('div'), ok = el('button', { style: 'margin-top:10px;width:100%', txt: 'Publicar no cardápio' });
+    function carrega() {
+      api('cardadm').then(function (d) {
+        if (!ref.options.length) d.refeicoes.forEach(function (x) { ref.appendChild(el('option', { value: x, txt: x })); });
+        lista.textContent = ''; if (!d.itens.length) lista.appendChild(el('div', { cls: 'muted', txt: 'Nada publicado de hoje em diante.' }));
+        d.itens.forEach(function (i) {
+          var ex = el('button', { cls: 'sec', txt: 'Excluir' });
+          ex.onclick = function () { if (!confirm('Excluir ' + i.data + ' · ' + i.refeicao + '?')) return; api('cardexcluir', { data: i.data, refeicao: i.refeicao }).then(function (r) { if (r.ok) carrega(); else msg.textContent = r.msg; }); };
+          lista.appendChild(el('div', { cls: 'pres' }, [el('div', {}, [el('b', { txt: i.data.slice(0, 5) + ' · ' + i.refeicao }), el('div', { txt: i.prato }), i.obs ? el('div', { cls: 'muted', txt: i.obs }) : null]), ex]));
+        });
+      }).catch(function (e) { lista.textContent = ''; lista.appendChild(erroBox(e)); });
+    }
+    ok.onclick = function () {
+      msg.style.color = ''; msg.textContent = ''; if (!dt.value) { msg.textContent = 'Escolha a data.'; return; }
+      var p = dt.value.split('-'); ok.disabled = true;
+      api('cardsalvar', { data: p[2] + '/' + p[1] + '/' + p[0], refeicao: ref.value, prato: prato.value, obs: obs.value }).then(function (r) {
+        ok.disabled = false; if (!r.ok) { msg.textContent = r.msg; return; }
+        msg.style.color = '#1B7F3B'; msg.textContent = r.alterado ? 'Cardápio atualizado.' : 'Publicado!'; prato.value = ''; obs.value = ''; carrega();
+      }).catch(function (e) { ok.disabled = false; msg.textContent = offline(e) ? 'Sem internet.' : 'Não foi possível salvar.'; });
+    };
+    $app.appendChild(el('div', { cls: 'card' }, [btnVoltar(), el('h2', { txt: 'Publicar prato' }), el('label', { txt: 'Data' }), dt, el('label', { txt: 'Refeição' }), ref, el('label', { txt: 'Prato' }), prato, el('label', { txt: 'Observação' }), obs, ok, msg]));
+    $app.appendChild(el('div', { cls: 'card' }, [el('h2', { txt: 'Já publicado' }), lista])); carrega();
+  }
+  // ---------- pesquisas do cardápio: resultados (gestão e cantina) e resposta do aluno ----------
+  function barras(itens) {
+    return el('div', {}, itens.map(function (c) {
+      return el('div', { style: 'margin:6px 0' }, [el('div', { style: 'display:flex;justify-content:space-between;font-size:13px' }, [el('span', { txt: c.op }), el('b', { txt: c.n + ' · ' + c.pct + '%' })]),
+        el('div', { cls: 'prog' }, [el('i', { style: 'width:' + c.pct + '%;background:#0B1F4B' })])]);
+    }));
+  }
+  function telaPesquisas(voltar) {
+    limpaTimers(); $app.textContent = ''; $app.appendChild(topo('Pesquisas do cardápio'));
+    var topoBox = el('div', { cls: 'card' }), box = el('div', { txt: 'Carregando…' });
+    if (voltar) { var bv = el('button', { cls: 'sec', style: 'margin-bottom:10px', txt: '← Gestão' }); bv.onclick = voltar; topoBox.appendChild(bv); }
+    topoBox.appendChild(el('h2', { txt: 'Resultados' })); topoBox.appendChild(el('div', { cls: 'muted', txt: 'As respostas dos alunos são anônimas (ninguém vê quem respondeu).' })); $app.appendChild(topoBox); $app.appendChild(box);
+    function form(tipos) {
+      var tp = el('select'), ti = el('input', { maxlength: '120' }), op = el('textarea', { rows: '4', placeholder: 'Uma opção por linha (2 a 8)\nEx.:\nEscondidinho de carne\nStrogonoff de frango' }), fim = el('input', { type: 'date' }), ms = el('div', { cls: 'msg' }), go = el('button', { style: 'margin-top:10px;width:100%', txt: 'Publicar pesquisa' });
+      var dicas = { AVALIAR: 'Ex.: Como você avalia o almoço de hoje?', NOVO: 'Ex.: Qual novo prato você quer no cardápio?', RETIRAR: 'Ex.: Qual prato você retiraria do cardápio?' };
+      Object.keys(tipos).forEach(function (k) { tp.appendChild(el('option', { value: k, txt: tipos[k] })); });
+      var opBox = el('div', { style: 'display:none' }, [el('label', { txt: 'Opções' }), op]);
+      function muda() { opBox.style.display = tp.value === 'AVALIAR' ? 'none' : 'block'; ti.setAttribute('placeholder', dicas[tp.value] || ''); } tp.onchange = muda; muda();
+      go.onclick = function () {
+        ms.style.color = ''; ms.textContent = ''; var f = ''; if (fim.value) { var p = fim.value.split('-'); f = p[2] + '/' + p[1] + '/' + p[0]; } go.disabled = true;
+        api('pesqcriar', { tipo: tp.value, titulo: ti.value, opcoes: op.value, fim: f }).then(function (r) { go.disabled = false; if (!r.ok) { ms.textContent = r.msg; return; } telaPesquisas(voltar); })
+          .catch(function (e) { go.disabled = false; ms.textContent = offline(e) ? 'Sem internet.' : 'Não foi possível publicar.'; });
+      };
+      return el('div', { cls: 'card' }, [el('h2', { txt: 'Nova pesquisa' }), el('label', { txt: 'Tipo' }), tp, el('label', { txt: 'Pergunta' }), ti, opBox, el('label', { txt: 'Encerrar em (opcional)' }), fim, go, ms]);
+    }
+    api('pesqlista').then(function (d) {
+      box.textContent = '';
+      if (d.pode) box.appendChild(form(d.tipos));
+      if (!d.itens.length) box.appendChild(el('div', { cls: 'card muted', txt: 'Nenhuma pesquisa ainda.' }));
+      d.itens.forEach(function (p) {
+        var k = [el('b', { txt: p.titulo }), el('div', { cls: 'muted', txt: p.rotulo + ' · ' + (p.aberta ? 'aberta' + (p.fim ? ' até ' + p.fim : '') : 'encerrada') + ' · ' + p.total + ' resposta(s) · ' + p.pctParticipacao + '% dos alunos' })];
+        if (p.media !== null) k.push(el('div', { style: 'font-size:22px;font-weight:800;color:#0B1F4B;margin:6px 0', txt: '★ ' + String(p.media).replace('.', ',') + ' de 5' }));
+        k.push(barras(p.contagem.map(function (c) { return { op: p.tipo === 'AVALIAR' ? c.op + ' ★' : c.op, n: c.n, pct: c.pct }; })));
+        if (d.pode && p.aberta) { var en = el('button', { cls: 'sec', style: 'margin-top:8px', txt: 'Encerrar pesquisa' }); en.onclick = function () { if (confirm('Encerrar esta pesquisa?')) api('pesqencerrar', { id: p.id }).then(function () { telaPesquisas(voltar); }); }; k.push(en); }
+        box.appendChild(el('div', { cls: 'card' }, k));
+      });
+    }).catch(function (e) { box.textContent = ''; box.appendChild(erroBox(e)); });
+  }
+  function telaPesqAluno() {
+    limpaTimers(); $app.textContent = ''; $app.appendChild(topo('Sua opinião sobre o cardápio')); var box = el('div', { txt: 'Carregando…' }); $app.appendChild(box);
+    api('pesqlista').then(function (d) {
+      box.textContent = ''; if (!d.itens.length) { box.appendChild(el('div', { cls: 'card muted', txt: 'Nenhuma pesquisa aberta agora. Volte em breve!' })); return; }
+      d.itens.forEach(function (p) {
+        var c = el('div', { cls: 'card' }, [el('b', { txt: p.titulo }), el('div', { cls: 'muted', txt: p.rotulo + (p.fim ? ' · até ' + p.fim : '') + ' · resposta anônima' })]), ms = el('div', { cls: 'msg' });
+        if (p.respondida) { c.appendChild(el('div', { cls: 'res ok', txt: '✔ Você já respondeu. Obrigado!' })); box.appendChild(c); return; }
+        var rot = { '1': '1 · Ruim', '2': '2', '3': '3 · Regular', '4': '4', '5': '5 · Ótimo' };
+        p.opcoes.forEach(function (o) {
+          var b = el('button', { cls: 'sec', style: 'width:100%;margin-top:8px;text-align:left;padding:13px', txt: p.tipo === 'AVALIAR' ? '★ ' + rot[o] : o });
+          b.onclick = function () {
+            c.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
+            api('pesqresp', { id: p.id, resp: o }).then(function (r) { if (r.ok) { c.textContent = ''; c.appendChild(el('b', { txt: p.titulo })); c.appendChild(el('div', { cls: 'res ok', txt: '✔ Resposta registrada. Obrigado!' })); } else { ms.textContent = r.msg; } })
+              .catch(function (e) { c.querySelectorAll('button').forEach(function (x) { x.disabled = false; }); ms.textContent = offline(e) ? 'Sem internet. Tente de novo.' : 'Não foi possível enviar.'; });
+          }; c.appendChild(b);
+        });
+        c.appendChild(ms); box.appendChild(c);
+      });
     }).catch(function (e) { box.textContent = ''; box.appendChild(erroBox(e)); });
   }
 
@@ -340,7 +485,7 @@
       else { n++; cont.textContent = 'Lidos nesta sessão: ' + n; mostraRes(res, 'ok', (r.tipo === 'saida' ? '↗ ' : '✔ ') + r.nome, (r.turma || '') + ' · ' + r.hora + (r.manual ? ' · manual' : '')); }
     }
     var nodes = leitor(function (v) { enviarComFila(modo, Object.assign({ code: v }, extra()), res, ok); }, function (t, s) { mostraRes(res, 'rec', t, s); });
-    var box = el('div', { cls: 'card' }, [seg, motivoBox, pend].concat(nodes).concat([res, cont, entradaManual(function () { return modo; }, extra, res, ok)]));
+    var box = el('div', { cls: 'card' }, [seg, motivoBox, pend].concat(nodes).concat([res, cont, buscaNome(function () { return modo; }, extra, res, ok), entradaManual(function () { return modo; }, extra, res, ok)]));
     var loteHolder = el('div'); box.appendChild(loteHolder); $app.appendChild(box); marca(); atualizaPend();
     api('hoje').then(function (d) { loteHolder.appendChild(loteBox('Sem identificação (informe turma e quantidade)', d.turmas || [], function () { return modo; }, extra, res, ok)); }).catch(function () {});
   }
