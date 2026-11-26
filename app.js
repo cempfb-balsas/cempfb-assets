@@ -89,12 +89,12 @@
   }
   function iniciar() {
     var pp = (S.papel || 'PROF').toUpperCase();
-    if (S.perfil === 'prof' && pp === 'PORTARIA') { var P = [['en', '🚪 Entrada', telaPortaria], ['hj', '📊 Hoje', telaHoje]]; P[0][2](); abas(P, 'en'); }
-    else if (S.perfil === 'prof' && pp === 'CANTINA') { var C = [['rf', '🍽 Refeição', telaRefeicao], ['hj', '📊 Hoje', telaHoje], ['ca', 'Cardápio', telaCardapio], ['pq', '📋 Pesquisas', function () { telaPesquisas(null); }]]; C[0][2](); abas(C, 'rf'); }
+    if (S.perfil === 'prof' && pp === 'PORTARIA') { var P = [['es', '📟 Estação', function () { telaEstacao('P'); }], ['mn', '✍ Manual', telaPortaria], ['fd', '📅 Sáb/Dom', telaFds], ['hj', '📊 Hoje', telaHoje]]; P[0][2](); abas(P, 'es'); }
+    else if (S.perfil === 'prof' && pp === 'CANTINA') { var C = [['es', '📟 Estação', function () { telaEstacao('C'); }], ['ls', '📋 Lista', telaListaCantina], ['hj', '📊 Hoje', telaHoje], ['ca', 'Cardápio', telaCardapio], ['pq', '📋 Pesquisas', function () { telaPesquisas(null); }]]; C[0][2](); abas(C, 'es'); }
     else if (S.perfil === 'prof' && pp === 'ADMIN') { var M = [['gs', '⚙ Gestão', telaGestao], ['hj', '📊 Hoje', telaHoje], ['ca', '🍽 Cardápio', telaCardapio]]; M[0][2](); abas(M, 'gs'); }
-    else if (S.perfil === 'prof' && pp === 'DIRECAO') { var D = [['hj', '📊 Hoje', telaHoje], ['ch', '✔ Chamada', telaChamada], ['bo', 'Boletim', telaBoletim], ['en', '🚪 Entrada', telaPortaria], ['rf', '🍽 Refeição', telaRefeicao], ['gs', '⚙ Gestão', telaGestao]]; D[0][2](); abas(D, 'hj'); }
+    else if (S.perfil === 'prof' && pp === 'DIRECAO') { var D = [['hj', '📊 Hoje', telaHoje], ['ch', '✔ Chamada', telaChamada], ['bo', 'Boletim', telaBoletim], ['es', '📟 Estação', function () { telaEstacao('D'); }], ['en', '✍ Manual', telaPortaria], ['fd', '📅 Sáb/Dom', telaFds], ['rf', '🍽 Refeição', telaRefeicao], ['gs', '⚙ Gestão', telaGestao]]; D[0][2](); abas(D, 'hj'); }
     else if (S.perfil === 'prof') { var L = [['ch', '✔ Chamada', telaChamada], ['bo', '📊 Boletim', telaBoletim], ['ca', '🍽 Cardápio', telaCardapio]]; L[0][2](); abas(L, 'ch'); }
-    else { var A = [['no', '📚 Notas', telaNotas], ['qr', '▣ Meu QR', telaQR], ['ca', '🍽 Cardápio', telaCardapio], ['pq', '📋 Pesquisa', telaPesqAluno]]; A[0][2](); abas(A, 'no'); }
+    else { var A = [['rg', '📲 Registrar', telaRegistrar], ['no', '📚 Notas', telaNotas], ['qr', '▣ Meu QR', telaQR], ['ca', '🍽 Cardápio', telaCardapio], ['pq', '📋 Pesquisa', telaPesqAluno]]; A[0][2](); abas(A, 'rg'); }
     sincronizarFila();
   }
   function topo(sub) {
@@ -207,7 +207,7 @@
   function telaGestao() {
     limpaTimers(); $app.textContent = ''; $app.appendChild(topo((S.papel === 'DIRECAO' ? 'Trio Gestor' : 'Administrativo') + ' · gestão'));
     var c = el('div', { cls: 'card' }, [el('h2', { txt: 'O que você quer fazer?' })]);
-    [['🔑  PINs: renovar senha de aluno ou da equipe', telaPins], ['🍽  Cardápio: publicar ou corrigir', telaCardapioAdm], ['📋  Pesquisas sobre o cardápio', function () { telaPesquisas(telaGestao); }]].forEach(function (x) {
+    [['🔑  PINs: renovar senha de aluno ou da equipe', telaPins], ['🍽  Cardápio: publicar ou corrigir', telaCardapioAdm], ['📋  Pesquisas sobre o cardápio', function () { telaPesquisas(telaGestao); }]].concat(S.papel === 'DIRECAO' ? [['📟  Estação (QR do tablet)', function () { telaEstacao('D'); }]] : []).forEach(function (x) {
       var b = el('button', { style: 'width:100%;margin-top:10px;text-align:left;padding:15px', txt: x[0] }); b.onclick = x[1]; c.appendChild(b);
     });
     $app.appendChild(c);
@@ -449,8 +449,8 @@
   function enviarComFila(acao, p, res, aoOk) {
     p.a = acao; p.ts = Date.now();
     api(acao, p).then(aoOk).catch(function (e) {
-      if (offline(e)) { var f = fila(); f.push(p); salvaFila(f); atualizaPend(); mostraRes(res, 'amb', 'Sem internet', 'Leitura guardada; envio automático quando voltar.'); }
-      else mostraRes(res, 'rec', 'QR não aceito', String(e.message).replace('Error:', '').trim() === 'QR_INVALIDO' ? 'Código inválido ou vencido. Peça para atualizar o QR.' : String(e.message));
+      if (offline(e)) { if (acao === 'checkin') p.fila = true; var f = fila(); f.push(p); salvaFila(f); atualizaPend(); mostraRes(res, 'amb', 'Sem internet', 'Leitura guardada; envio automático quando voltar.'); }
+      else { var m = String(e.message).replace('Error:', '').trim(); mostraRes(res, 'rec', 'Não registrado', m === 'QR_INVALIDO' ? 'Código inválido. Aponte para o QR do tablet.' : (m === 'QR_VENCIDO' ? 'Código vencido. Espere o QR do tablet mudar e leia de novo.' : m)); }
     });
   }
   function entradaManual(acaoFn, extra, res, aoOk) {
@@ -470,22 +470,23 @@
 
   // ---------- portaria: entrada e saída ----------
   function telaPortaria() {
-    $app.textContent = ''; $app.appendChild(topo('Portaria · entrada e saída'));
+    $app.textContent = ''; $app.appendChild(topo('Portaria · lançamento manual'));
     var modo = 'entrada', res = el('div'), cont = el('div', { cls: 'muted', txt: 'Lidos nesta sessão: 0' }), n = 0, pend = el('div', { id: 'pend', cls: 'off', style: 'display:none' });
     var bE = el('button', { txt: '↘ Entrada' }), bS = el('button', { cls: 'sec', style: 'width:100%;margin-top:12px;padding:13px', txt: '↗ Saída' }), seg = el('div', { cls: 'row' }, [bE, bS]);
     var motivo = el('select'); ['Liberação antecipada', 'Consulta / atendimento', 'Fim do turno', 'Outro motivo'].forEach(function (x) { motivo.appendChild(el('option', { value: x, txt: x })); });
     var motivoBox = el('div', { style: 'display:none' }, [el('label', { txt: 'Motivo da saída' }), motivo]);
-    function marca() { bE.className = modo === 'entrada' ? '' : 'sec'; bS.className = modo === 'saida' ? '' : 'sec'; bE.style.cssText = bS.style.cssText = 'width:100%;margin-top:12px;padding:13px'; motivoBox.style.display = modo === 'saida' ? 'block' : 'none'; res.textContent = ''; }
+    function marca() { crBox.style.display = modo === 'entrada' ? 'block' : 'none'; bE.className = modo === 'entrada' ? '' : 'sec'; bS.className = modo === 'saida' ? '' : 'sec'; bE.style.cssText = bS.style.cssText = 'width:100%;margin-top:12px;padding:13px'; motivoBox.style.display = modo === 'saida' ? 'block' : 'none'; res.textContent = ''; }
     bE.onclick = function () { modo = 'entrada'; marca(); }; bS.onclick = function () { modo = 'saida'; marca(); };
-    function extra() { return modo === 'saida' ? { motivo: motivo.value } : {}; }
+    var cr = el('select', {}, [el('option', { value: '', txt: 'Padrão (dia útil conta; sáb/dom a confirmar)' }), el('option', { value: 'sim', txt: 'Vai almoçar/comer (conta)' }), el('option', { value: 'nao', txt: 'Não conta refeição' })]);
+    var crBox = el('div', {}, [el('label', { txt: 'Refeição deste aluno' }), cr]);
+    function extra() { if (modo === 'saida') return { motivo: motivo.value }; return cr.value === 'sim' ? { contaRef: true } : (cr.value === 'nao' ? { contaRef: false } : {}); }
     function ok(r) {
       var tipo = r.tipo === 'saida' ? 'Saída' : 'Entrada';
       if (r.lote) { n += r.qtd; cont.textContent = 'Lidos nesta sessão: ' + n; mostraRes(res, 'ok', '✔ ' + r.qtd + ' aluno(s) · ' + r.turma, tipo + ' sem identificação · ' + r.hora); }
       else if (r.dup) mostraRes(res, 'amb', r.nome + ' · ' + tipo.toLowerCase() + ' já registrada', 'Às ' + r.hora + ' (' + r.turma + ')');
       else { n++; cont.textContent = 'Lidos nesta sessão: ' + n; mostraRes(res, 'ok', (r.tipo === 'saida' ? '↗ ' : '✔ ') + r.nome, (r.turma || '') + ' · ' + r.hora + (r.manual ? ' · manual' : '')); }
     }
-    var nodes = leitor(function (v) { enviarComFila(modo, Object.assign({ code: v }, extra()), res, ok); }, function (t, s) { mostraRes(res, 'rec', t, s); });
-    var box = el('div', { cls: 'card' }, [seg, motivoBox, pend].concat(nodes).concat([res, cont, buscaNome(function () { return modo; }, extra, res, ok), entradaManual(function () { return modo; }, extra, res, ok)]));
+    var box = el('div', { cls: 'card' }, [el('div', { cls: 'muted', txt: 'Para aluno sem celular, sem bateria ou que esqueceu. O aluno com celular lê o QR do tablet (aba Estação).' }), seg, motivoBox, crBox, pend].concat([res, cont, buscaNome(function () { return modo; }, extra, res, ok), entradaManual(function () { return modo; }, extra, res, ok)]));
     var loteHolder = el('div'); box.appendChild(loteHolder); $app.appendChild(box); marca(); atualizaPend();
     api('hoje').then(function (d) { loteHolder.appendChild(loteBox('Sem identificação (informe turma e quantidade)', d.turmas || [], function () { return modo; }, extra, res, ok)); }).catch(function () {});
   }
@@ -501,10 +502,106 @@
       else { n++; cont.textContent = 'Servidos nesta sessão: ' + n; mostraRes(res, r.aviso ? 'amb' : 'ok', '✔ ' + r.nome, (r.turma || '') + (r.aviso ? ' · ' + r.aviso : '')); }
     }
     function extra() { return { refeicao: sel.value }; }
-    var nodes = leitor(function (v) { enviarComFila('refeicao', Object.assign({ code: v }, extra()), res, ok); }, function (t, s) { mostraRes(res, 'rec', t, s); });
-    $app.appendChild(el('div', { cls: 'card' }, [el('h2', { txt: 'Refeição' }), el('label', { txt: 'Refeição em andamento' }), sel, pend].concat(nodes).concat([res, cont,
+    $app.appendChild(el('div', { cls: 'card' }, [el('h2', { txt: 'Refeição (direção)' }), el('label', { txt: 'Refeição em andamento' }), sel, pend].concat([res, cont,
       entradaManual(function () { return 'refeicao'; }, extra, res, ok), loteBox('Servidos sem leitura do QR (só quantidade)', null, function () { return 'refeicao'; }, extra, res, ok)])));
     atualizaPend();
+  }
+
+
+  // ---------- estação: QR fixo que muda a cada 30 s (tablet da portaria / cantina) ----------
+  function hmacHex(msg, key) {
+    var enc = new TextEncoder();
+    return crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']).then(function (k) { return crypto.subtle.sign('HMAC', k, enc.encode(msg)); })
+      .then(function (b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ('0' + x.toString(16)).slice(-2); }).join(''); });
+  }
+  function telaEstacao(grupo) {
+    var MODOS = { P: [['E', '↘ ENTRADA'], ['S', '↗ SAÍDA']], C: [['R0', '☕ Café'], ['R1', '🍽 Almoço'], ['R2', '🥪 Lanche']], D: [['E', '↘ Entrada'], ['S', '↗ Saída'], ['R0', '☕ Café'], ['R1', '🍽 Almoço'], ['R2', '🥪 Lanche']] }[grupo];
+    var modo = MODOS[0][0], chave = '', off = 0, slotMs = 30000, ult = '', ocupado = false;
+    var img = el('img', { alt: 'QR da estação', style: 'display:none' }), barra = el('i'), titulo = el('div', { cls: 'estt', txt: '' }), msg = el('div', { cls: 'muted', txt: 'Conectando…' });
+    var seg = el('div', { cls: 'row' }, MODOS.map(function (m) { var b = el('button', { txt: m[1], cls: m[0] === modo ? '' : 'sec' }); b.onclick = function () { modo = m[0]; ult = ''; seg.querySelectorAll('button').forEach(function (x) { x.className = 'sec'; }); b.className = ''; tick(); }; return b; }));
+    limpaTimers(); $app.textContent = ''; $app.appendChild(topo(grupo === 'C' ? 'Cantina · QR da refeição' : 'Estação · QR do tablet'));
+    var fs = el('button', { cls: 'sec', style: 'margin-top:8px', txt: '⛶ Tela cheia' }); fs.onclick = function () { try { document.documentElement.requestFullscreen(); } catch (e) {} };
+    $app.appendChild(el('div', { cls: 'card qrbox' }, [seg, titulo, img, el('div', { cls: 'bar' }, [barra]), msg, el('div', { cls: 'muted', style: 'margin-top:8px', txt: 'Deixe esta tela aberta e voltada para os alunos. O código muda sozinho a cada 30 segundos. Aluno: abra o app, toque em "Registrar" e aponte a câmera. Pode usar 2 tablets (entre com o login da portaria nos dois).' }), fs]));
+    function carrega() {
+      api('estacao').then(function (r) { chave = r.chave; slotMs = r.slotMs || 30000; off = r.agora - Date.now(); msg.textContent = 'Pronto.'; tick(); })
+        .catch(function (e) { msg.textContent = offline(e) ? 'Sem internet para iniciar a estação. Tentando de novo…' : String(e.message); });
+    }
+    function tick() {
+      if (!chave || ocupado) return;
+      var agora = Date.now() + off, slot = Math.floor(agora / slotMs), chv = modo + '.' + slot;
+      barra.style.width = (100 - (agora % slotMs) * 100 / slotMs) + '%';
+      var m = MODOS.filter(function (x) { return x[0] === modo; })[0]; titulo.textContent = m[1];
+      if (chv === ult) return; ocupado = true;
+      hmacHex(chv, chave).then(function (h) { ult = chv; desenharQR(chv + '.' + h.slice(0, 16), img); img.style.display = 'inline-block'; ocupado = false; })
+        .catch(function () { ocupado = false; msg.textContent = 'Este navegador não calcula o código (use Chrome com https).'; });
+    }
+    carrega(); timers.push(setInterval(tick, 500)); timers.push(setInterval(carrega, 1800000));
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(function () {}); } catch (e) {}
+  }
+
+  // ---------- aluno: lê o QR da estação ----------
+  function telaRegistrar() {
+    $app.textContent = ''; $app.appendChild(topo('Registrar presença ou refeição'));
+    var res = el('div'), pend = el('div', { id: 'pend', cls: 'off', style: 'display:none' });
+    function ok(r) {
+      if (r.refeicao) { if (r.dup) mostraRes(res, 'amb', 'Refeição já registrada', r.refeicao); else mostraRes(res, r.aviso ? 'amb' : 'ok', '✔ ' + r.refeicao + ' registrado', r.aviso || r.hora || ''); return; }
+      var t = r.tipo === 'saida' ? 'Saída' : 'Entrada';
+      if (r.dup) mostraRes(res, 'amb', t + ' já registrada', 'Às ' + (r.hora || ''));
+      else mostraRes(res, 'ok', '✔ ' + t + ' registrada', (r.hora || '') + (r.fds ? ' · fim de semana: a portaria confirma sua refeição' : ''));
+    }
+    var nodes = leitor(function (v) { enviarComFila('checkin', { code: v }, res, ok); }, function (t, s2) { mostraRes(res, 'rec', t, s2); });
+    $app.appendChild(el('div', { cls: 'card' }, [el('h2', { txt: 'Aponte para o QR do tablet' }), el('div', { cls: 'muted', txt: 'Portaria: entrada ou saída. Cantina: refeição. Sem internet? A leitura fica guardada e é enviada quando voltar.' }), pend].concat(nodes).concat([res])));
+    atualizaPend();
+  }
+
+  // ---------- portaria: fim de semana ----------
+  function telaFds() {
+    $app.textContent = ''; $app.appendChild(topo('Sábado e domingo · confirmar refeição'));
+    var box = el('div', { cls: 'card', txt: 'Carregando…' }); $app.appendChild(box);
+    function carrega() {
+      api('fds').then(function (d) {
+        box.textContent = ''; box.appendChild(el('h2', { txt: 'Quem vai comer hoje?' }));
+        box.appendChild(el('div', { cls: 'muted', txt: d.fds ? 'Confirme com cada aluno. "Não" = não conta na previsão de refeições.' : 'Hoje não é sábado nem domingo: a confirmação só vale no fim de semana.' }));
+        if (!d.itens.length) box.appendChild(el('div', { cls: 'muted', style: 'margin-top:10px', txt: 'Nenhum aluno registrado hoje.' }));
+        d.itens.forEach(function (x) {
+          var st = el('span', { cls: x.ok === 'SIM' ? 'ok' : (x.ok === 'NAO' ? 'rec' : 'amb'), txt: x.ok === 'SIM' ? 'Vai comer' : (x.ok === 'NAO' ? 'Não vai' : 'Pendente') });
+          var bs = el('button', { style: 'padding:8px 14px', txt: 'Sim' }), bn = el('button', { cls: 'sec', style: 'padding:8px 14px;margin-left:6px', txt: 'Não' });
+          function envia(v) { bs.disabled = bn.disabled = true; api('confirmaref', { mat: x.mat, ok: v }).then(function () { carrega(); }).catch(function (e) { bs.disabled = bn.disabled = false; st.textContent = offline(e) ? 'Sem internet' : String(e.message); }); }
+          bs.onclick = function () { envia('SIM'); }; bn.onclick = function () { envia('NAO'); };
+          box.appendChild(el('div', { cls: 'pres' }, [el('div', {}, [el('b', { txt: x.nome }), el('div', { cls: 'muted', txt: x.turma + ' · ' + x.hora }), st]), el('div', {}, [bs, bn])]));
+        });
+        var b = el('button', { cls: 'sec', style: 'margin-top:12px', txt: '↻ Atualizar' }); b.onclick = carrega; box.appendChild(b);
+      }).catch(function (e) { box.textContent = ''; box.appendChild(erroBox(e)); });
+    }
+    carrega();
+  }
+
+  // ---------- cantina: lista da turma (só primeiro nome) ----------
+  function telaListaCantina() {
+    $app.textContent = ''; $app.appendChild(topo('Cantina · lista da turma'));
+    var tSel = el('select'), rSel = el('select'), lista = el('div'), res = el('div'), turmasL = [];
+    ['Café da manhã', 'Almoço', 'Lanche da tarde'].forEach(function (x) { rSel.appendChild(el('option', { value: x, txt: x })); }); rSel.value = 'Almoço';
+    var card = el('div', { cls: 'card' }, [el('h2', { txt: 'Turma liberada ou lanche avulso' }), el('div', { cls: 'muted', txt: 'Use quando poucos alunos ficaram na escola. Só aparece número e primeiro nome. Cinza = já saiu ou não está na escola.' }),
+      el('label', { txt: 'Turma' }), tSel, el('label', { txt: 'Refeição' }), rSel, res, lista]);
+    $app.appendChild(card);
+    function carrega() {
+      if (!tSel.value) return; lista.textContent = 'Carregando…';
+      api('cantturma', { turma: tSel.value, refeicao: rSel.value }).then(function (d) {
+        lista.textContent = ''; if (!d.itens.length) lista.appendChild(el('div', { cls: 'muted', txt: 'Nenhum aluno nesta turma.' }));
+        d.itens.forEach(function (i) {
+          var b = el('button', { style: 'width:100%;margin-top:6px;text-align:left;padding:13px' + (i.estado === 'cinza' ? ';opacity:.45' : ''), cls: i.estado === 'servido' ? 'sec' : '', txt: i.n + ' · ' + i.nome + (i.estado === 'servido' ? '  ✔ servido' : '') });
+          if (i.estado !== 'ativo') b.disabled = true;
+          b.onclick = function () { b.disabled = true; api('cantregistra', { k: i.k, refeicao: rSel.value }).then(function (r) { if (r.dup) mostraRes(res, 'amb', i.nome + ' · já servido', rSel.value); else mostraRes(res, 'ok', '✔ ' + i.nome, rSel.value); carrega(); }).catch(function (e) { b.disabled = false; mostraRes(res, 'rec', 'Não registrado', offline(e) ? 'Sem internet.' : String(e.message)); }); };
+          lista.appendChild(b);
+        });
+        var rb = el('button', { cls: 'sec', style: 'margin-top:10px', txt: '↻ Atualizar' }); rb.onclick = carrega; lista.appendChild(rb);
+      }).catch(function (e) { lista.textContent = ''; lista.appendChild(erroBox(e)); });
+    }
+    tSel.onchange = carrega; rSel.onchange = carrega;
+    api('hoje').then(function (d) {
+      turmasL = d.turmas || []; tSel.appendChild(el('option', { value: '', txt: 'Escolha a turma…' })); turmasL.forEach(function (x) { tSel.appendChild(el('option', { value: x, txt: x })); });
+      card.appendChild(loteBox('Só a quantidade (sem lista)', turmasL, function () { return 'refeicao'; }, function () { return { refeicao: rSel.value }; }, res, function (r) { mostraRes(res, 'ok', '✔ ' + r.qtd + ' servido(s)', rSel.value); }));
+    }).catch(function (e) { lista.appendChild(erroBox(e)); });
   }
 
   // ---------- painel do dia (portaria, cantina e direção): gráficos ----------
@@ -538,10 +635,26 @@
         box.appendChild(el('div', { cls: 'muted', txt: 'Esperados = quem já tinha chegado e ainda não tinha saído até o horário da refeição (liberações antecipadas descontadas). Cada aluno conta uma vez por refeição.' }));
         if (d.chegadas.length) { box.appendChild(el('h2', { style: 'margin-top:16px', txt: 'Chegadas por horário (a cada 15 min)' })); box.appendChild(barsV(d.chegadas, 'var(--navy)')); }
         if (d.saidas.length) { box.appendChild(el('h2', { style: 'margin-top:16px', txt: 'Saídas por horário' })); box.appendChild(barsV(d.saidas, 'var(--red)')); }
+        if (d.encerrado) box.appendChild(el('div', { cls: 'off', txt: 'Expediente encerrado (após ' + d.fim + '): sem lanche e sem registro de saída.' }));
+        if (d.fds) box.appendChild(el('div', { cls: 'off', txt: 'Fim de semana: refeição só conta depois da confirmação da portaria. Pendentes: ' + d.pendFds }));
+        function grupo(tit, arr) {
+          box.appendChild(el('h2', { style: 'margin-top:16px', txt: tit }));
+          arr.forEach(function (x) { box.appendChild(barH(x.k, x.presentes, x.total, x.presentes + '/' + x.total + ' · ' + x.pct + '%', x.pct >= 85 ? 'var(--grn)' : 'var(--navy)')); box.appendChild(el('div', { cls: 'muted', txt: 'Servidos: café ' + x.serv[0] + ' · almoço ' + x.serv[1] + ' · lanche ' + x.serv[2] })); });
+        }
+        if (d.porSerie && d.porSerie.length) grupo('Por série (100 / 200 / 300)', d.porSerie);
+        if (d.porCurso && d.porCurso.length) grupo('Por curso (ADM / INT / MKT)', d.porCurso);
         box.appendChild(el('h2', { style: 'margin-top:16px', txt: 'Presença por turma' }));
         d.porTurma.forEach(function (x) { box.appendChild(barH(x.turma, x.presentes, x.total, x.presentes + '/' + x.total + ' · ' + x.pct + '%', x.pct >= 85 ? 'var(--grn)' : 'var(--navy)')); });
         if (d.ultimos && d.ultimos.length) { box.appendChild(el('h2', { style: 'margin-top:16px', txt: 'Últimas entradas' })); d.ultimos.forEach(function (u) { box.appendChild(el('div', { cls: 'pres' }, [el('span', { txt: u.nome + ' · ' + u.turma }), el('span', { cls: 'muted', txt: u.hora })])); }); }
         var b = el('button', { cls: 'sec', style: 'margin-top:12px', txt: '↻ Atualizar' }); b.onclick = carrega; box.appendChild(b);
+        var mb = el('div'); box.appendChild(mb);
+        api('mensal').then(function (m) {
+          mb.appendChild(el('h2', { style: 'margin-top:18px', txt: 'Refeições por mês · ' + m.ano }));
+          var t = el('table', { cls: 'tb' }, [el('tr', {}, ['Mês', 'Café', 'Almoço', 'Lanche', 'Total'].map(function (h) { return el('th', { txt: h }); }))]);
+          m.meses.forEach(function (x) { t.appendChild(el('tr', {}, [x.rot.toUpperCase() + (x.fechado ? '' : '*'), x.cafe, x.almoco, x.lanche, x.total].map(function (v) { return el('td', { txt: String(v) }); }))); });
+          var y = m.totalAno; t.appendChild(el('tr', { style: 'font-weight:800' }, ['TOTAL ' + m.ano, y.cafe, y.almoco, y.lanche, y.total].map(function (v) { return el('td', { txt: String(v) }); })));
+          mb.appendChild(t); mb.appendChild(el('div', { cls: 'muted', txt: '* mês em andamento. Meses fechados ficam guardados só com os totais.' + (m.anoAnterior ? ' Ano anterior: ' + m.anoAnterior.total + ' refeições.' : '') }));
+        }).catch(function () {});
       }).catch(function (e) { box.textContent = ''; box.appendChild(erroBox(e)); });
     }
     carrega(); timers.push(setInterval(carrega, 60000));
