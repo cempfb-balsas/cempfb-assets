@@ -1,5 +1,5 @@
 // Service worker: guarda a "casca" do app para abrir sem internet. Dados (notas, chamada) sempre vão à rede.
-const V = 'painel-cempfb-v5';
+const V = 'painel-cempfb-v6';
 const ARQ = ['./', 'index.html', 'style.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'vendor/jsQR.js', 'vendor/qrcode.js', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(V).then(function (c) { return c.addAll(ARQ); })); self.skipWaiting(); });
