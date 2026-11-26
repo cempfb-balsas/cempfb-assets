@@ -39,3 +39,5 @@ video{width:100%;border-radius:10px;background:#000;max-height:46vh;object-fit:c
 .vbc{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;width:30px}.vbc i{display:block;width:100%;border-radius:3px 3px 0 0}.vbc small{font-size:9px;color:var(--gry);line-height:1.2}
 
 .tabs button{min-width:0;white-space:nowrap;font-size:11px}textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;box-sizing:border-box}
+.estt{font-size:30px;font-weight:800;color:var(--navy);margin:8px 0}.qrbox.est img,.qrbox img{max-width:100%}
+.tb{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}.tb th,.tb td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:right}.tb th:first-child,.tb td:first-child{text-align:left}
